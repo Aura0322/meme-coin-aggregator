@@ -1,0 +1,33 @@
+@'
+import { fetchWithRetry } from "../../utils/httpClient";
+import { Token } from "../../types/token";
+
+export async function fetchDexScreenerSearch(q: string): Promise<Token[]> {
+  const url = `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`;
+  const data: any = await fetchWithRetry(url);
+  const pairs = data?.pairs || [];
+  return pairs.map((p: any) => ({
+    token_address: p?.baseToken?.address || p?.token?.address || '',
+    token_name: p?.baseToken?.name || p?.token?.name,
+    token_ticker: p?.baseToken?.symbol || p?.token?.symbol,
+    price_sol: Number(p?.priceUsd || 0),
+    volume_sol: Number(p?.volumeUsd || 0),
+    source_meta: { dexscreener: { last_updated: Date.now(), raw: p } }
+  })).filter(t => t.token_address);
+}
+
+export async function fetchDexScreenerToken(tokenAddr: string): Promise<Token | null> {
+  const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddr}`;
+  const data: any = await fetchWithRetry(url);
+  const pair = data?.pairs?.[0];
+  if (!pair) return null;
+  return {
+    token_address: tokenAddr,
+    token_name: pair?.baseToken?.name || pair?.token?.name,
+    token_ticker: pair?.baseToken?.symbol || pair?.token?.symbol,
+    price_sol: Number(pair?.priceUsd || 0),
+    volume_sol: Number(pair?.volumeUsd || 0),
+    source_meta: { dexscreener: { last_updated: Date.now(), raw: data } }
+  };
+}
+'@ | Out-File -FilePath .\src\ingest\providers\dexscreener.ts -Encoding utf8
